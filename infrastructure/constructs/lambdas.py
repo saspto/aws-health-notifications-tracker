@@ -75,9 +75,11 @@ class LambdasConstruct(Construct):
 
         self.llm_summarizer.add_to_role_policy(
             iam.PolicyStatement(
-                actions=["bedrock:InvokeModel"],
+                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
                 resources=[
-                    f"arn:aws:bedrock:{region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
+                    # Wildcard region required — cross-region inference profile routes to us-east-1/us-east-2/us-west-2
+                    "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+                    f"arn:aws:bedrock:*:{account_id}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0",
                 ],
             )
         )
