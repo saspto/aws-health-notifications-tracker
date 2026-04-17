@@ -1,382 +1,429 @@
 #!/usr/bin/env python3
-"""Generate USPTO demo PowerPoint deck for AWS Health Notifications Tracker."""
+"""Generate USPTO demo PowerPoint deck — clean, validated approach."""
 import os
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
-from pptx.util import Inches, Pt
-from pptx.enum.dml import MSO_THEME_COLOR
+from pptx.oxml.ns import qn
+from pptx.enum.shapes import MSO_SHAPE_TYPE
+import pptx.oxml
 
-# ── Brand colours ──────────────────────────────────────────────────────────────
+# ── colours ────────────────────────────────────────────────────────────────────
 NAVY   = RGBColor(0x23, 0x2F, 0x3E)
 ORANGE = RGBColor(0xFF, 0x99, 0x00)
 WHITE  = RGBColor(0xFF, 0xFF, 0xFF)
-LGRAY  = RGBColor(0xF5, 0xF5, 0xF5)
+LGRAY  = RGBColor(0xF2, 0xF2, 0xF2)
 DGRAY  = RGBColor(0x44, 0x44, 0x44)
-RED    = RGBColor(0xD1, 0x3F, 0x28)
+MGRAY  = RGBColor(0x88, 0x88, 0x88)
+RED    = RGBColor(0xC0, 0x39, 0x2B)
 GREEN  = RGBColor(0x1E, 0x8E, 0x4C)
 BLUE   = RGBColor(0x00, 0x73, 0xBB)
+PURPLE = RGBColor(0x7B, 0x2D, 0x8B)
+DGREEN = RGBColor(0x1A, 0x5F, 0x3C)
 
 SCREENS = os.path.join(os.path.dirname(__file__), "..", "mock_screens")
 OUT     = os.path.join(os.path.dirname(__file__), "..", "presentation", "aws-health-tracker-deck.pptx")
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
-W, H = Inches(13.33), Inches(7.5)   # 16:9 widescreen
-
 prs = Presentation()
-prs.slide_width  = W
-prs.slide_height = H
+prs.slide_width  = Inches(13.33)
+prs.slide_height = Inches(7.5)
+BLANK = prs.slide_layouts[6]   # blank layout
 
-BLANK = prs.slide_layouts[6]   # completely blank
 
+# ── primitive helpers ──────────────────────────────────────────────────────────
 
-# ── helpers ────────────────────────────────────────────────────────────────────
-def add_rect(slide, left, top, width, height, fill=None, line=None):
-    shape = slide.shapes.add_shape(1, left, top, width, height)  # MSO_SHAPE_TYPE.RECTANGLE=1
-    if fill:
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = fill
+def rect(slide, l, t, w, h, fill_rgb=None, line_rgb=None, line_pt=0.75):
+    """Add a plain rectangle. fill_rgb=None means transparent background."""
+    from pptx.util import Pt as _Pt
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+    shp = slide.shapes.add_shape(
+        1,  # MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE=5, RECTANGLE=1
+        l, t, w, h
+    )
+    shp.line.fill.background()  # no line by default
+    if fill_rgb is None:
+        shp.fill.background()
     else:
-        shape.fill.background()
-    if line:
-        shape.line.color.rgb = line
-        shape.line.width = Pt(1)
+        shp.fill.solid()
+        shp.fill.fore_color.rgb = fill_rgb
+    if line_rgb:
+        shp.line.color.rgb = line_rgb
+        shp.line.width = _Pt(line_pt)
     else:
-        shape.line.fill.background()
-    return shape
+        shp.line.fill.background()
+    return shp
 
-def add_textbox(slide, left, top, width, height, text, size=18,
-                bold=False, color=WHITE, align=PP_ALIGN.LEFT, wrap=True):
-    tb = slide.shapes.add_textbox(left, top, width, height)
+
+def txt(slide, l, t, w, h, text, size=16, bold=False,
+        color=WHITE, align=PP_ALIGN.LEFT, italic=False, wrap=True):
+    """Add a textbox."""
+    tb = slide.shapes.add_textbox(l, t, w, h)
     tf = tb.text_frame
     tf.word_wrap = wrap
-    p = tf.paragraphs[0]
-    p.alignment = align
-    run = p.add_run()
+    para = tf.paragraphs[0]
+    para.alignment = align
+    run = para.add_run()
     run.text = text
-    run.font.size  = Pt(size)
-    run.font.bold  = bold
+    run.font.size   = Pt(size)
+    run.font.bold   = bold
+    run.font.italic = italic
     run.font.color.rgb = color
     return tb
 
-def add_bullet_box(slide, left, top, width, height, bullets, size=16,
-                   color=DGRAY, bold_first=False, spacing=1.2):
-    tb = slide.shapes.add_textbox(left, top, width, height)
-    tf = tb.text_frame
-    tf.word_wrap = True
-    for i, b in enumerate(bullets):
-        p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
-        p.space_after  = Pt(4)
-        run = p.add_run()
-        run.text = b
-        run.font.size  = Pt(size)
-        run.font.color.rgb = color
-        run.font.bold  = (bold_first and i == 0)
-    return tb
 
-def navy_header(slide, title, subtitle=None):
-    """Full-width navy header bar at top."""
-    add_rect(slide, 0, 0, W, Inches(1.2), fill=NAVY)
-    add_textbox(slide, Inches(0.4), Inches(0.18), Inches(10), Inches(0.65),
-                title, size=28, bold=True, color=WHITE)
+def img(slide, path, l, t, w, h):
+    if os.path.exists(path):
+        slide.shapes.add_picture(path, l, t, w, h)
+
+
+def header(slide, title, subtitle=None):
+    """Navy header bar + orange underline."""
+    rect(slide, 0, 0, prs.slide_width, Inches(1.15), fill_rgb=NAVY)
+    rect(slide, 0, Inches(1.15), prs.slide_width, Inches(0.055), fill_rgb=ORANGE)
+    txt(slide, Inches(0.4), Inches(0.12), Inches(10), Inches(0.6),
+        title, size=26, bold=True, color=WHITE)
     if subtitle:
-        add_textbox(slide, Inches(0.4), Inches(0.75), Inches(10), Inches(0.4),
-                    subtitle, size=14, color=ORANGE)
-    # orange accent line
-    add_rect(slide, 0, Inches(1.2), W, Inches(0.06), fill=ORANGE)
+        txt(slide, Inches(0.4), Inches(0.7), Inches(11.5), Inches(0.38),
+            subtitle, size=12, color=ORANGE)
+
 
 def footer(slide):
-    add_rect(slide, 0, Inches(7.1), W, Inches(0.4), fill=NAVY)
-    add_textbox(slide, Inches(0.3), Inches(7.12), Inches(6), Inches(0.3),
-                "AWS Health Notifications Tracker  |  USPTO AWS Innovation Team",
-                size=9, color=RGBColor(0xAA,0xAA,0xAA))
-    add_textbox(slide, Inches(10.5), Inches(7.12), Inches(2.5), Inches(0.3),
-                "CONFIDENTIAL", size=9, color=RGBColor(0xAA,0xAA,0xAA), align=PP_ALIGN.RIGHT)
+    rect(slide, 0, Inches(7.12), prs.slide_width, Inches(0.38), fill_rgb=NAVY)
+    txt(slide, Inches(0.3), Inches(7.15), Inches(9), Inches(0.3),
+        "AWS Health Notifications Tracker  |  USPTO AWS Innovation Team",
+        size=9, color=MGRAY)
+    txt(slide, Inches(10.5), Inches(7.15), Inches(2.5), Inches(0.3),
+        "April 2026", size=9, color=MGRAY, align=PP_ALIGN.RIGHT)
+
+
+def card(slide, l, t, w, h, title, body,
+         title_bg=NAVY, title_fg=WHITE, body_bg=LGRAY, body_fg=DGRAY,
+         title_size=12, body_size=10):
+    rect(slide, l, t, w, Inches(0.4), fill_rgb=title_bg)
+    txt(slide, l + Inches(0.1), t + Inches(0.05), w - Inches(0.15),
+        Inches(0.35), title, size=title_size, bold=True, color=title_fg)
+    rect(slide, l, t + Inches(0.4), w, h - Inches(0.4), fill_rgb=body_bg,
+         line_rgb=RGBColor(0xCC, 0xCC, 0xCC))
+    txt(slide, l + Inches(0.1), t + Inches(0.48), w - Inches(0.18),
+        h - Inches(0.56), body, size=body_size, color=body_fg, wrap=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLIDE 1 — Title
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-add_rect(s, 0, 0, W, H, fill=NAVY)
-# orange side accent
-add_rect(s, 0, 0, Inches(0.18), H, fill=ORANGE)
-# large title
-add_textbox(s, Inches(0.6), Inches(1.6), Inches(11), Inches(1.4),
-            "AWS Health Notifications Tracker",
-            size=42, bold=True, color=WHITE)
+# full background
+rect(s, 0, 0, prs.slide_width, prs.slide_height, fill_rgb=NAVY)
+# left accent bar
+rect(s, 0, 0, Inches(0.2), prs.slide_height, fill_rgb=ORANGE)
+# title
+txt(s, Inches(0.55), Inches(1.5), Inches(11.5), Inches(1.2),
+    "AWS Health Notifications Tracker",
+    size=40, bold=True, color=WHITE)
 # orange rule
-add_rect(s, Inches(0.6), Inches(3.15), Inches(9), Inches(0.07), fill=ORANGE)
+rect(s, Inches(0.55), Inches(2.9), Inches(10), Inches(0.07), fill_rgb=ORANGE)
 # subtitle
-add_textbox(s, Inches(0.6), Inches(3.35), Inches(10), Inches(0.6),
-            "Centralized Visibility & Actionable Intelligence for 200+ Account AWS Organizations",
-            size=20, color=RGBColor(0xCC,0xCC,0xCC))
-# presenter block
-add_textbox(s, Inches(0.6), Inches(4.6), Inches(8), Inches(0.4),
-            "Demo  |  USPTO AWS Innovation Team  |  April 2026",
-            size=14, color=ORANGE)
-# AWS badge
-badge = add_rect(s, Inches(10.6), Inches(6.5), Inches(2.3), Inches(0.7), fill=ORANGE)
-add_textbox(s, Inches(10.65), Inches(6.52), Inches(2.2), Inches(0.65),
-            "Powered by AWS", size=13, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+txt(s, Inches(0.55), Inches(3.1), Inches(11.5), Inches(0.7),
+    "Centralized Visibility & AI-Powered Insights for 200+ Account AWS Organizations",
+    size=20, color=RGBColor(0xCC, 0xCC, 0xCC))
+# meta
+txt(s, Inches(0.55), Inches(4.5), Inches(9), Inches(0.45),
+    "Demo Presentation  |  USPTO AWS Innovation Team  |  April 2026",
+    size=14, color=ORANGE)
+# badge
+rect(s, Inches(10.5), Inches(6.4), Inches(2.5), Inches(0.7), fill_rgb=ORANGE)
+txt(s, Inches(10.5), Inches(6.45), Inches(2.5), Inches(0.55),
+    "Powered by AWS", size=13, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLIDE 2 — The Problem
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "The Challenge", "Managing AWS Health at scale across a large AWS Organization")
+header(s, "The Challenge",
+       "Managing AWS Health events at scale across a large AWS Organization")
 footer(s)
 
 problems = [
-    ("⚠  Missed Deadlines",
-     "Critical maintenance windows and deprecation deadlines buried in individual account dashboards — "
-     "no org-wide view means teams miss required actions."),
-    ("📋  Manual, Fragmented Tracking",
-     "Operations teams manually check 200+ accounts in the AWS Console. "
-     "Spreadsheets used to track follow-up status become stale within hours."),
-    ("🔇  No Prioritization or Intelligence",
-     "Raw AWS Health events lack context. Teams cannot distinguish Critical from Low urgency "
-     "without reading every event in full — and there is no owner assignment workflow."),
+    ("Missed Deadlines",
+     "Critical maintenance windows and deprecation notices are buried in 200 individual account "
+     "dashboards. There is no organization-wide view, so teams regularly miss required actions."),
+    ("Manual, Fragmented Tracking",
+     "Operations teams must manually check each account in the AWS Console. Spreadsheets used "
+     "to track follow-up status become stale within hours and have no ownership workflow."),
+    ("No Prioritization or AI Assistance",
+     "Raw AWS Health events contain dense technical text with no plain-English summary. Teams "
+     "cannot distinguish Critical from Low urgency at a glance, and there is no automated "
+     "action recommendation."),
 ]
 
-y = Inches(1.45)
-for icon_title, body in problems:
-    add_rect(s, Inches(0.4), y, Inches(12.4), Inches(1.35), fill=LGRAY, line=RGBColor(0xDD,0xDD,0xDD))
-    add_textbox(s, Inches(0.6), y + Inches(0.12), Inches(11.5), Inches(0.4),
-                icon_title, size=16, bold=True, color=NAVY)
-    add_textbox(s, Inches(0.6), y + Inches(0.5), Inches(11.5), Inches(0.7),
-                body, size=13, color=DGRAY, wrap=True)
-    y += Inches(1.5)
+y = Inches(1.35)
+for title, body in problems:
+    rect(s, Inches(0.35), y, Inches(0.07), Inches(1.3), fill_rgb=ORANGE)
+    rect(s, Inches(0.42), y, Inches(12.5), Inches(1.3),
+         fill_rgb=LGRAY, line_rgb=RGBColor(0xDD, 0xDD, 0xDD))
+    txt(s, Inches(0.6), y + Inches(0.1), Inches(12), Inches(0.4),
+        title, size=15, bold=True, color=NAVY)
+    txt(s, Inches(0.6), y + Inches(0.5), Inches(12), Inches(0.72),
+        body, size=12, color=DGRAY, wrap=True)
+    y += Inches(1.45)
 
-add_textbox(s, Inches(0.4), Inches(6.55), Inches(12), Inches(0.4),
-            "Result: Compliance risk, reactive operations, and engineer burnout from manual monitoring.",
-            size=13, bold=True, color=RED, align=PP_ALIGN.CENTER)
+rect(s, Inches(0.35), y + Inches(0.1), Inches(12.5), Inches(0.5), fill_rgb=RED)
+txt(s, Inches(0.55), y + Inches(0.13), Inches(12), Inches(0.38),
+    "Result: Compliance risk, reactive operations, and engineer burnout from manual account monitoring.",
+    size=12, bold=True, color=WHITE)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLIDE 3 — Solution Overview
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "Solution: AWS Health Notifications Tracker",
-            "Automated aggregation · AI summarization · Deadline tracking · Follow-up workflow")
+header(s, "Solution: AWS Health Notifications Tracker",
+       "Automated collection  •  AI summarization  •  Deadline tracking  •  Follow-up workflow")
 footer(s)
 
 cols = [
-    ("🔄  Automated Collection",   "EventBridge triggers Health Collector Lambda every 15 min across all 200 accounts via AWS Organizations Health API."),
-    ("🤖  AI Summarization",       "Amazon Bedrock (Claude Haiku) converts raw events into plain-English summaries, action items, and urgency scores."),
-    ("📊  Centralized Dashboard",  "React SPA served via CloudFront shows stats, sortable/filterable event list, and deadline countdowns."),
-    ("🔔  Proactive Reminders",    "Daily SNS digest emails for deadlines within 7 days — Critical events escalate at 3 days."),
-    ("✅  Follow-up Workflow",     "Per-event owner assignment, status tracking (Pending → In Progress → Resolved), and notes — all persisted in DynamoDB."),
+    (NAVY,   "Automated Collection",
+     "EventBridge triggers Health Collector Lambda every 15 minutes. "
+     "AWS Organizations Health API aggregates events from all 200 accounts automatically."),
+    (BLUE,   "AI Summarization",
+     "Amazon Bedrock (Claude Haiku) converts raw AWS API events into plain-English summaries, "
+     "step-by-step action items, urgency scores, and extracted deadlines."),
+    (DGREEN, "Centralized Dashboard",
+     "React SPA on CloudFront shows stats cards, service/urgency charts, sortable event list, "
+     "and deadline countdowns — all accounts in a single view."),
+    (PURPLE, "Proactive Reminders",
+     "Daily SNS email digest for events with deadlines within 7 days. "
+     "Critical events re-escalate at 3 days remaining."),
+    (RGBColor(0xA0, 0x52, 0x2D), "Follow-up Workflow",
+     "Per-event owner assignment, status tracking (Pending / In Progress / Resolved), "
+     "and free-text notes — persisted to DynamoDB and visible org-wide."),
 ]
 
 x = Inches(0.25)
-for title, body in cols:
-    add_rect(s, x, Inches(1.45), Inches(2.45), Inches(4.8), fill=WHITE, line=RGBColor(0xDD,0xDD,0xDD))
-    add_rect(s, x, Inches(1.45), Inches(2.45), Inches(0.45), fill=NAVY)
-    add_textbox(s, x + Inches(0.1), Inches(1.48), Inches(2.25), Inches(0.4),
-                title[:2], size=18, color=ORANGE)
-    add_textbox(s, x + Inches(0.1), Inches(2.0), Inches(2.25), Inches(0.45),
-                title[3:], size=13, bold=True, color=NAVY)
-    add_textbox(s, x + Inches(0.1), Inches(2.52), Inches(2.25), Inches(3.5),
-                body, size=11, color=DGRAY, wrap=True)
+cw = Inches(2.5)
+for bg, title, body in cols:
+    rect(s, x, Inches(1.38), cw, Inches(5.35), fill_rgb=WHITE,
+         line_rgb=RGBColor(0xCC, 0xCC, 0xCC))
+    rect(s, x, Inches(1.38), cw, Inches(0.5), fill_rgb=bg)
+    txt(s, x + Inches(0.1), Inches(1.42), cw - Inches(0.15), Inches(0.42),
+        title, size=12, bold=True, color=WHITE)
+    txt(s, x + Inches(0.1), Inches(1.95), cw - Inches(0.18), Inches(4.5),
+        body, size=11, color=DGRAY, wrap=True)
     x += Inches(2.6)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SLIDE 4 — Architecture Diagram
+# SLIDE 4 — Architecture Diagram (text-box based, no connectors)
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "Architecture", "Serverless · FedRAMP Authorized · us-east-1 · ~$10–15/month")
+header(s, "Architecture",
+       "Serverless  •  FedRAMP Authorized  •  us-east-1  •  ~$10–15/month")
 footer(s)
 
-# ── draw boxes + arrows ────────────────────────────────────────────────────────
-def box(sl, left, top, w, h, label, sub="", bg=NAVY, fg=WHITE, sub_color=ORANGE):
-    add_rect(sl, left, top, w, h, fill=bg)
-    add_textbox(sl, left+Inches(0.06), top+Inches(0.06), w-Inches(0.12), Inches(0.35),
-                label, size=11, bold=True, color=fg, align=PP_ALIGN.CENTER)
+BW, BH = Inches(2.0), Inches(0.65)
+
+def abox(sl, l, t, label, sub="", bg=NAVY):
+    rect(sl, l, t, BW, BH, fill_rgb=bg)
+    txt(sl, l + Inches(0.07), t + Inches(0.05), BW - Inches(0.12),
+        Inches(0.33), label, size=10, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
     if sub:
-        add_textbox(sl, left+Inches(0.06), top+Inches(0.38), w-Inches(0.12), Inches(0.28),
-                    sub, size=9, color=sub_color, align=PP_ALIGN.CENTER)
+        txt(sl, l + Inches(0.07), t + Inches(0.35), BW - Inches(0.12),
+            Inches(0.26), sub, size=8, color=ORANGE, align=PP_ALIGN.CENTER)
 
-def arrow(sl, x1, y1, x2, y2):
-    from pptx.util import Pt
-    connector = sl.shapes.add_connector(1, x1, y1, x2, y2)
-    connector.line.color.rgb = ORANGE
-    connector.line.width = Pt(1.8)
+def arr(sl, l, t, w, h, horiz=True):
+    """Draw a thin orange arrow line."""
+    rect(sl, l, t, w, h, fill_rgb=ORANGE)
 
-BW, BH = Inches(1.85), Inches(0.72)
+# Column x positions
+C1, C2, C3, C4, C5 = Inches(0.25), Inches(2.7), Inches(5.15), Inches(7.6), Inches(10.05)
+# Row y positions
+R1, R2, R3, R4 = Inches(1.42), Inches(2.35), Inches(3.28), Inches(4.55)
 
-# Row 1 — triggers
-box(s, Inches(0.3),  Inches(1.5),  BW, BH, "EventBridge", "rate(15 min)",    bg=RGBColor(0x7B,0x2D,0x8B))
-box(s, Inches(0.3),  Inches(3.0),  BW, BH, "EventBridge", "cron(0 9 * * ?)", bg=RGBColor(0x7B,0x2D,0x8B))
+# Row 1 — collection pipeline
+abox(s, C1, R1, "EventBridge", "rate(15 min)", bg=PURPLE)
+arr(s,  C1+BW, R1+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C2, R1, "health-collector", "Lambda  Python 3.12", bg=NAVY)
+arr(s,  C2+BW, R1+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C3, R1, "DynamoDB", "HealthEvents table", bg=DGREEN)
+arr(s,  C3+BW, R1+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C4, R1, "llm-summarizer", "Lambda  Python 3.12", bg=NAVY)
+arr(s,  C4+BW, R1+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C5, R1, "Amazon Bedrock", "Claude Haiku", bg=PURPLE)
 
-# Row 1 → Lambda collectors
-box(s, Inches(2.55), Inches(1.5),  BW, BH, "health-collector", "Lambda Python 3.12", bg=NAVY)
-box(s, Inches(2.55), Inches(3.0),  BW, BH, "deadline-reminder","Lambda Python 3.12", bg=NAVY)
+# Downward arrows from DynamoDB → Stream label, and collector → S3
+arr(s, C3+BW/2, R1+BH, Inches(0.08), Inches(0.25))
 
-# DynamoDB centre
-box(s, Inches(5.0),  Inches(2.1),  BW, BH, "DynamoDB", "HealthEvents table", bg=RGBColor(0x1A,0x5F,0x3C))
+# Row 2 — streams label
+txt(s, C3+Inches(0.5), R1+BH+Inches(0.27), Inches(1.0), Inches(0.25),
+    "DynamoDB Streams", size=8, color=MGRAY, align=PP_ALIGN.CENTER)
 
-# LLM summarizer
-box(s, Inches(7.3),  Inches(1.5),  BW, BH, "llm-summarizer",   "Lambda Python 3.12", bg=NAVY)
-box(s, Inches(9.5),  Inches(1.5),  BW, BH, "Amazon Bedrock",   "Claude Haiku",        bg=RGBColor(0x7B,0x2D,0x8B))
+# Downward from collector to S3 archive
+arr(s, C2+BW/2, R1+BH, Inches(0.08), Inches(0.9))
+abox(s, C2, R2+Inches(0.28), "S3 Archive", "Raw event JSON", bg=RGBColor(0x56, 0x7B, 0x1C))
 
-# SNS
-box(s, Inches(5.0),  Inches(3.5),  BW, BH, "SNS Topic",        "Email digest",        bg=RGBColor(0xE8,0x55,0x1B))
+# Row 2 — reminder pipeline
+abox(s, C1, R2+Inches(0.28), "EventBridge", "cron(0 9 * * ?)", bg=PURPLE)
+arr(s,  C1+BW, R2+Inches(0.28)+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C2+Inches(2.45), R2+Inches(0.28), "deadline-reminder", "Lambda  Python 3.12", bg=NAVY)
+arr(s,  C2+Inches(2.45)+BW, R2+Inches(0.28)+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C4, R2+Inches(0.28), "SNS Topic", "Email digest", bg=RGBColor(0xE8, 0x55, 0x1B))
 
-# S3 archive
-box(s, Inches(2.55), Inches(4.8),  BW, BH, "S3 Archive",       "Raw event JSON",      bg=RGBColor(0x56,0x7B,0x1C))
-
-# Frontend stack
-box(s, Inches(9.5),  Inches(3.5),  BW, BH, "React SPA",        "CloudFront + S3",     bg=RGBColor(0x00,0x52,0x9B))
-box(s, Inches(9.5),  Inches(4.6),  BW, BH, "API Gateway",      "HTTP API",            bg=RGBColor(0xA0,0x52,0x2D))
-box(s, Inches(7.3),  Inches(4.6),  BW, BH, "api-handler",      "Lambda Python 3.12",  bg=NAVY)
+# Row 3 — API / Frontend
+txt(s, C3+Inches(0.05), R3, Inches(1.9), Inches(0.28),
+    "API reads from DynamoDB", size=8, color=MGRAY)
+arr(s, C3+BW/2, R1+BH+Inches(1.65), Inches(0.08), Inches(0.55))
+abox(s, C3, R3+Inches(0.3), "api-handler", "Lambda  Python 3.12", bg=NAVY)
+arr(s,  C3+BW, R3+Inches(0.3)+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C4, R3+Inches(0.3), "API Gateway", "HTTP API (open)", bg=RGBColor(0xA0, 0x52, 0x2D))
+arr(s,  C4+BW, R3+Inches(0.3)+Inches(0.27), Inches(0.45), Inches(0.08))
+abox(s, C5, R3+Inches(0.3), "CloudFront", "React SPA + S3", bg=BLUE)
 
 # Users
-box(s, Inches(11.3), Inches(3.5),  Inches(1.6), BH, "👤 Users", "Browser", bg=RGBColor(0x44,0x44,0x44))
+txt(s, C5+Inches(0.3), R4, BW-Inches(0.3), Inches(0.28),
+    "Users (browser)", size=9, bold=True, color=NAVY)
+arr(s, C5+BW/2, R3+Inches(0.3)+BH, Inches(0.08), Inches(0.5))
 
-# arrows
-cy = lambda top: top + Inches(0.36)   # vertical centre of a box
-rx = lambda left: left + BW           # right edge
-cx = lambda left: left + BW/2         # horizontal centre
-
-arrow(s, rx(Inches(0.3)), cy(Inches(1.5)), Inches(2.55), cy(Inches(1.5)))
-arrow(s, rx(Inches(0.3)), cy(Inches(3.0)), Inches(2.55), cy(Inches(3.0)))
-arrow(s, rx(Inches(2.55)), cy(Inches(1.5)), Inches(5.0), cy(Inches(2.1)))
-arrow(s, cx(Inches(5.0)), Inches(2.1), cx(Inches(5.0)), Inches(1.5)+Inches(0.3))  # up to summarizer row
-arrow(s, Inches(5.0)+BW, cy(Inches(2.1)), Inches(7.3), cy(Inches(1.5)))
-arrow(s, rx(Inches(7.3)), cy(Inches(1.5)), Inches(9.5), cy(Inches(1.5)))
-arrow(s, rx(Inches(2.55)), cy(Inches(3.0)), Inches(5.0), cy(Inches(3.5)))
-arrow(s, rx(Inches(2.55)), cy(Inches(1.5)), Inches(2.55)+BW/2, Inches(4.8))
-arrow(s, rx(Inches(9.5)), cy(Inches(3.5)), Inches(11.3), cy(Inches(3.5)))
-arrow(s, Inches(11.3)+Inches(0.8), cy(Inches(3.5)), Inches(9.5)+BW, cy(Inches(4.6)))
-arrow(s, Inches(9.5), cy(Inches(4.6)), Inches(7.3)+BW, cy(Inches(4.6)))
-arrow(s, Inches(7.3), cy(Inches(4.6)), Inches(5.0)+BW, cy(Inches(2.1))+Inches(0.1))
+# legend
+legend_items = [
+    (PURPLE, "EventBridge Scheduler"),
+    (NAVY,   "Lambda Functions"),
+    (DGREEN, "DynamoDB"),
+    (BLUE,   "CloudFront / S3"),
+    (RGBColor(0xA0,0x52,0x2D), "API Gateway"),
+    (RGBColor(0xE8,0x55,0x1B), "SNS"),
+]
+lx = Inches(0.25)
+for bg, label in legend_items:
+    rect(s, lx, Inches(6.72), Inches(0.22), Inches(0.22), fill_rgb=bg)
+    txt(s, lx + Inches(0.27), Inches(6.71), Inches(1.7), Inches(0.26),
+        label, size=9, color=DGRAY)
+    lx += Inches(2.1)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLIDE 5 — AWS Services Table
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "AWS Services Used", "All FedRAMP Authorized  ·  us-east-1 commercial  ·  No NAT Gateways")
+header(s, "AWS Services Used",
+       "All FedRAMP Authorized  •  us-east-1 commercial  •  No NAT Gateways, no always-on EC2")
 footer(s)
 
-rows = [
-    ("AWS Health API (Orgs)", "Source of all health events across 200 accounts", "✅ Authorized", "~$0"),
-    ("Lambda (×4)",           "health-collector, llm-summarizer, deadline-reminder, api-handler", "✅ Authorized", "~$1–2/mo"),
-    ("DynamoDB (on-demand)",  "Primary store — events, status, follow-up tracking", "✅ Authorized", "~$5–10/mo"),
-    ("Amazon Bedrock",        "Claude Haiku LLM — summaries & action extraction", "✅ Authorized", "~$1–2/mo"),
-    ("S3 (×2)",               "Raw event archive + React SPA static assets", "✅ Authorized", "<$1/mo"),
-    ("CloudFront",            "CDN for React SPA with Origin Access Control", "✅ Authorized", "<$1/mo"),
-    ("API Gateway (HTTP)",    "REST backend for the React app", "✅ Authorized", "~$1/mo"),
-    ("EventBridge Scheduler", "Cron triggers: 15-min collector + daily reminder", "✅ Authorized", "<$1/mo"),
-    ("SNS",                   "Deadline alert email digests to ops team", "✅ Authorized", "<$1/mo"),
-    ("CloudWatch Logs",       "All Lambda logs, 30-day retention", "✅ Authorized", "<$1/mo"),
+table_data = [
+    ("AWS Health API (Orgs)",  "Source of all health events across all accounts", "FedRAMP Auth", "~$0"),
+    ("Lambda (x4)",            "health-collector, llm-summarizer, deadline-reminder, api-handler", "FedRAMP Auth", "~$1–2"),
+    ("DynamoDB (on-demand)",   "Primary store — events, status, follow-up tracking", "FedRAMP Auth", "~$5–10"),
+    ("Amazon Bedrock",         "Claude Haiku — plain-English summaries & action extraction", "FedRAMP Auth", "~$1–2"),
+    ("S3 (x2 buckets)",        "Raw event archive + React SPA static assets", "FedRAMP Auth", "<$1"),
+    ("CloudFront",             "CDN for React SPA with Origin Access Control", "FedRAMP Auth", "<$1"),
+    ("API Gateway HTTP API",   "REST backend for the React frontend (no auth required)", "FedRAMP Auth", "~$1"),
+    ("EventBridge Scheduler",  "rate(15 min) for collector + cron(09:00 UTC) for reminders", "FedRAMP Auth", "<$1"),
+    ("SNS",                    "Deadline alert email digests to the ops team", "FedRAMP Auth", "<$1"),
+    ("CloudWatch Logs",        "All Lambda logs with 30-day retention", "FedRAMP Auth", "<$1"),
 ]
 
-headers = ["Service", "Purpose", "FedRAMP", "Est. Cost"]
-col_w   = [Inches(2.2), Inches(6.6), Inches(1.6), Inches(1.6)]
-col_x   = [Inches(0.3), Inches(2.5), Inches(9.1), Inches(10.7)]
+CX = [Inches(0.3), Inches(2.55), Inches(9.55), Inches(11.6)]
+CW = [Inches(2.2),  Inches(6.95),  Inches(2.0),   Inches(1.45)]
+RH = Inches(0.43)
+HDRS = ["Service", "Purpose", "FedRAMP Status", "Est./mo"]
 
-# header row
-y = Inches(1.45)
-for i, h in enumerate(headers):
-    add_rect(s, col_x[i], y, col_w[i], Inches(0.38), fill=NAVY)
-    add_textbox(s, col_x[i]+Inches(0.06), y+Inches(0.05), col_w[i]-Inches(0.1), Inches(0.3),
-                h, size=11, bold=True, color=WHITE)
-
+y = Inches(1.35)
+for ci, h in enumerate(HDRS):
+    rect(s, CX[ci], y, CW[ci], Inches(0.38), fill_rgb=NAVY)
+    txt(s, CX[ci]+Inches(0.06), y+Inches(0.05), CW[ci]-Inches(0.1),
+        Inches(0.3), h, size=10, bold=True, color=WHITE)
 y += Inches(0.38)
-for ri, row in enumerate(rows):
-    bg = LGRAY if ri % 2 == 0 else WHITE
-    row_h = Inches(0.46)
-    for ci, cell in enumerate(row):
-        add_rect(s, col_x[ci], y, col_w[ci], row_h, fill=bg, line=RGBColor(0xDD,0xDD,0xDD))
-        clr = GREEN if cell.startswith("✅") else DGRAY
-        add_textbox(s, col_x[ci]+Inches(0.06), y+Inches(0.07), col_w[ci]-Inches(0.1), row_h-Inches(0.1),
-                    cell, size=10, color=clr)
-    y += row_h
 
-add_textbox(s, Inches(0.3), Inches(7.0), Inches(10), Inches(0.35),
-            "Total estimated monthly cost: ~$10–15/month at steady state (50K events, 500 Bedrock calls)",
-            size=11, bold=True, color=NAVY)
+for ri, row in enumerate(table_data):
+    bg = LGRAY if ri % 2 == 0 else WHITE
+    for ci, cell in enumerate(row):
+        rect(s, CX[ci], y, CW[ci], RH, fill_rgb=bg,
+             line_rgb=RGBColor(0xDD, 0xDD, 0xDD))
+        clr = GREEN if cell == "FedRAMP Auth" else DGRAY
+        txt(s, CX[ci]+Inches(0.06), y+Inches(0.07), CW[ci]-Inches(0.1),
+            RH-Inches(0.1), cell, size=9, color=clr)
+    y += RH
+
+rect(s, Inches(0.3), y+Inches(0.1), Inches(12.7), Inches(0.42), fill_rgb=NAVY)
+txt(s, Inches(0.5), y+Inches(0.14), Inches(9), Inches(0.3),
+    "Total estimated monthly cost at steady state (50K events, 200 accounts, 500 Bedrock calls):",
+    size=10, bold=False, color=WHITE)
+txt(s, Inches(10.0), y+Inches(0.14), Inches(3), Inches(0.3),
+    "~$10–15 / month", size=12, bold=True, color=ORANGE, align=PP_ALIGN.RIGHT)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SLIDE 6 — Dashboard Screenshot
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "Dashboard", "Real-time stats, urgency charts, and upcoming deadlines at a glance")
+header(s, "Dashboard",
+       "Real-time stats, urgency charts, and upcoming critical deadlines at a glance")
 footer(s)
-
-img_path = os.path.join(SCREENS, "01_dashboard.png")
-if os.path.exists(img_path):
-    s.shapes.add_picture(img_path, Inches(0.3), Inches(1.35), Inches(12.7), Inches(5.65))
-
-add_textbox(s, Inches(0.3), Inches(7.02), Inches(12.5), Inches(0.3),
-            "Stats cards · Events by Service chart · Events by Urgency chart · Top critical events table",
-            size=10, color=DGRAY, align=PP_ALIGN.CENTER)
+img(s, os.path.join(SCREENS, "01_dashboard.png"),
+    Inches(0.3), Inches(1.3), Inches(12.7), Inches(5.7))
+txt(s, Inches(0.3), Inches(7.03), Inches(12.5), Inches(0.26),
+    "Stats cards  •  Events by Service bar chart  •  Events by Urgency chart  •  Top critical events table",
+    size=9, color=MGRAY, align=PP_ALIGN.CENTER)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SLIDE 7 — Notifications List Screenshot
+# SLIDE 7 — Notifications List
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "Notifications List", "Searchable, filterable, sortable — all 200 accounts in one view")
+header(s, "Notifications List",
+       "All 200 accounts in one sortable, searchable table — with deadline countdowns")
 footer(s)
-
-img_path = os.path.join(SCREENS, "02_notification_list.png")
-if os.path.exists(img_path):
-    s.shapes.add_picture(img_path, Inches(0.3), Inches(1.35), Inches(12.7), Inches(5.65))
-
-add_textbox(s, Inches(0.3), Inches(7.02), Inches(12.5), Inches(0.3),
-            "Search · Filter by Service / Urgency / Status / Account · Deadline countdown · CSV export",
-            size=10, color=DGRAY, align=PP_ALIGN.CENTER)
+img(s, os.path.join(SCREENS, "02_notification_list.png"),
+    Inches(0.3), Inches(1.3), Inches(12.7), Inches(5.7))
+txt(s, Inches(0.3), Inches(7.03), Inches(12.5), Inches(0.26),
+    "Search  •  Filter by Service / Urgency / Status / Account  •  Deadline countdown  •  CSV export",
+    size=9, color=MGRAY, align=PP_ALIGN.CENTER)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SLIDE 8 — Filtered View Screenshot
+# SLIDE 8 — Filtered View
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "Intelligent Filtering", "Instantly isolate Critical events across all accounts")
+header(s, "Intelligent Filtering",
+       "Instantly surface Critical events across all accounts — filter by any dimension")
 footer(s)
-
-img_path = os.path.join(SCREENS, "03_notification_list_filtered.png")
-if os.path.exists(img_path):
-    s.shapes.add_picture(img_path, Inches(0.3), Inches(1.35), Inches(12.7), Inches(5.65))
-
-add_textbox(s, Inches(0.3), Inches(7.02), Inches(12.5), Inches(0.3),
-            "Filter to Critical urgency — surface highest-priority items immediately for any account",
-            size=10, color=DGRAY, align=PP_ALIGN.CENTER)
+img(s, os.path.join(SCREENS, "03_notification_list_filtered.png"),
+    Inches(0.3), Inches(1.3), Inches(12.7), Inches(5.7))
+txt(s, Inches(0.3), Inches(7.03), Inches(12.5), Inches(0.26),
+    "Filter to Critical urgency — all accounts — sorted by soonest deadline first",
+    size=9, color=MGRAY, align=PP_ALIGN.CENTER)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SLIDE 9 — Event Detail + AI Summary Screenshot
+# SLIDE 9 — Event Detail + AI Summary
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "AI-Generated Event Detail", "Amazon Bedrock (Claude Haiku) turns raw API events into actionable guidance")
+header(s, "AI-Generated Event Detail",
+       "Amazon Bedrock (Claude Haiku) turns raw Health API events into actionable guidance")
 footer(s)
+img(s, os.path.join(SCREENS, "04_notification_detail.png"),
+    Inches(0.3), Inches(1.3), Inches(7.8), Inches(5.7))
 
-img_path = os.path.join(SCREENS, "04_notification_detail.png")
-if os.path.exists(img_path):
-    s.shapes.add_picture(img_path, Inches(0.3), Inches(1.35), Inches(8.2), Inches(5.65))
-
-# call-out boxes on the right
 callouts = [
-    (BLUE,   "📝  Plain-English Summary",  "2–3 sentence stakeholder-ready description generated by Claude Haiku via Amazon Bedrock."),
-    (GREEN,  "✅  Recommended Actions",     "3–5 specific, step-by-step action items extracted from the raw event description."),
-    (RED,    "⏰  Urgency + Deadline",      "Automatic classification: Critical / High / Medium / Low based on deadline proximity."),
-    (NAVY,   "👤  Follow-up Tracker",      "Owner assignment, status dropdown, and notes — saved directly to DynamoDB."),
+    (BLUE,   "Plain-English Summary",
+     "2–3 sentence stakeholder-ready description generated by Claude Haiku via Amazon Bedrock."),
+    (GREEN,  "Recommended Actions",
+     "3–5 specific, step-by-step action items extracted from the raw event description."),
+    (RED,    "Urgency + Deadline",
+     "Auto-classified: Critical / High / Medium / Low. Deadline extracted in ISO 8601 format."),
+    (NAVY,   "Follow-up Tracker",
+     "Assign an owner, set status (Pending / In Progress / Resolved), add notes. Saved to DynamoDB."),
 ]
 
-y = Inches(1.45)
+y = Inches(1.32)
 for bg, title, body in callouts:
-    add_rect(s, Inches(8.7), y, Inches(4.35), Inches(1.28), fill=bg)
-    add_textbox(s, Inches(8.85), y+Inches(0.08), Inches(4.1), Inches(0.38),
-                title, size=12, bold=True, color=WHITE)
-    add_textbox(s, Inches(8.85), y+Inches(0.45), Inches(4.1), Inches(0.75),
-                body, size=10, color=WHITE, wrap=True)
+    rect(s, Inches(8.3), y, Inches(4.75), Inches(1.3), fill_rgb=bg)
+    txt(s, Inches(8.45), y + Inches(0.08), Inches(4.5), Inches(0.38),
+        title, size=12, bold=True, color=WHITE)
+    txt(s, Inches(8.45), y + Inches(0.46), Inches(4.5), Inches(0.76),
+        body, size=10, color=WHITE, wrap=True)
     y += Inches(1.38)
 
 
@@ -384,118 +431,90 @@ for bg, title, body in callouts:
 # SLIDE 10 — Security & Compliance
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "Security & Compliance", "FedRAMP Authorized services only · IAM least-privilege · No data leaves us-east-1")
+header(s, "Security & Compliance",
+       "FedRAMP Authorized services only  •  IAM least-privilege  •  No data leaves us-east-1")
 footer(s)
 
-left_items = [
-    ("🏛  FedRAMP Authorized",   "All AWS services used (Lambda, DynamoDB, S3, CloudFront, API Gateway, Bedrock, EventBridge, SNS) are FedRAMP Authorized in us-east-1."),
-    ("🔐  IAM Least-Privilege",  "Each Lambda has a dedicated IAM role with only the permissions it needs — no wildcard actions, no shared roles."),
-    ("🔒  Encryption at Rest",   "DynamoDB tables encrypted with AWS-managed keys. S3 buckets use S3-managed encryption. All traffic over TLS 1.2+."),
-    ("🌐  Network Isolation",    "No VPC, no NAT Gateway — Lambda functions call AWS APIs directly over HTTPS. No public S3 bucket policies; CloudFront uses OAC."),
-    ("📋  Audit & Observability","All Lambda invocations logged to CloudWatch with 30-day retention. DynamoDB Point-in-Time Recovery enabled on the HealthEvents table."),
+sec_items = [
+    ("FedRAMP Authorized Services Only",
+     "Every AWS service used — Lambda, DynamoDB, S3, CloudFront, API Gateway, Bedrock, "
+     "EventBridge, SNS, CloudWatch — is FedRAMP Authorized in us-east-1 commercial."),
+    ("IAM Least-Privilege Roles",
+     "Each of the four Lambda functions has a dedicated IAM execution role scoped to only "
+     "the exact actions and resources it requires. No wildcard actions, no shared roles."),
+    ("Encryption at Rest & in Transit",
+     "DynamoDB tables encrypted with AWS-managed keys. S3 buckets use S3-managed encryption. "
+     "All API traffic uses TLS 1.2+. CloudFront enforces HTTPS redirect."),
+    ("No Public Access",
+     "S3 frontend bucket is private — served exclusively through CloudFront with Origin Access "
+     "Control. Archive S3 bucket blocks all public access. No public DynamoDB endpoints."),
+    ("Audit & Observability",
+     "All Lambda invocations log to CloudWatch with 30-day retention. DynamoDB Point-in-Time "
+     "Recovery enabled. EventBridge Scheduler retries failed Lambda invocations automatically."),
 ]
 
-y = Inches(1.45)
-for title, body in left_items:
-    add_rect(s, Inches(0.3), y, Inches(12.6), Inches(0.95), fill=LGRAY, line=RGBColor(0xDD,0xDD,0xDD))
-    add_rect(s, Inches(0.3), y, Inches(0.12), Inches(0.95), fill=ORANGE)
-    add_textbox(s, Inches(0.55), y+Inches(0.06), Inches(3.2), Inches(0.38),
-                title, size=13, bold=True, color=NAVY)
-    add_textbox(s, Inches(3.8), y+Inches(0.14), Inches(9.0), Inches(0.65),
-                body, size=11, color=DGRAY, wrap=True)
-    y += Inches(1.05)
+y = Inches(1.35)
+for title, body in sec_items:
+    rect(s, Inches(0.3), y, Inches(0.1), Inches(1.05), fill_rgb=ORANGE)
+    rect(s, Inches(0.4), y, Inches(12.55), Inches(1.05),
+         fill_rgb=LGRAY, line_rgb=RGBColor(0xDD, 0xDD, 0xDD))
+    txt(s, Inches(0.6), y + Inches(0.08), Inches(12), Inches(0.35),
+        title, size=13, bold=True, color=NAVY)
+    txt(s, Inches(0.6), y + Inches(0.43), Inches(12), Inches(0.55),
+        body, size=10, color=DGRAY, wrap=True)
+    y += Inches(1.13)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SLIDE 11 — Cost Summary
+# SLIDE 11 — Roadmap
 # ══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(BLANK)
-navy_header(s, "Cost Estimate", "Pay-per-use serverless architecture — minimal idle cost")
+header(s, "Roadmap & Next Steps",
+       "Phase 2 enhancements to further reduce operational toil for USPTO cloud teams")
 footer(s)
 
-cost_rows = [
-    ("Lambda (×4 functions)",  "15-min polling + stream triggers + daily reminder + API calls", "~$1–2/mo"),
-    ("DynamoDB on-demand",     "~50K reads + 50K writes per month (200 accounts × daily events)", "~$5–10/mo"),
-    ("Amazon Bedrock (Haiku)", "~500 events/month × avg 1K tokens in + 0.5K out", "~$1–2/mo"),
-    ("S3 (archive + SPA)",     "Raw JSON archive + static frontend assets", "<$1/mo"),
-    ("CloudFront",             "Static SPA delivery — free tier covers most traffic", "<$1/mo"),
-    ("API Gateway HTTP API",   "~10K API calls/month from dashboard users", "~$1/mo"),
-    ("EventBridge Scheduler",  "2 schedules — flat rate", "<$1/mo"),
-    ("SNS + CloudWatch",       "Email digest + log ingestion", "<$1/mo"),
+phases = [
+    (GREEN,  "Phase 1  —  Complete",
+     ["Automated event collection across all 200 accounts",
+      "AI summaries and action items via Amazon Bedrock",
+      "React dashboard: stats, filtering, search, CSV export",
+      "Follow-up ownership tracking with deadline reminders"]),
+    (NAVY,   "Phase 2  —  Near-term",
+     ["Slack / Teams integration for real-time notifications",
+      "ServiceNow ticketing — auto-create incident for Critical",
+      "Cognito / SSO authentication when federation available",
+      "Multi-region failover support (us-west-2)"]),
+    (DGRAY,  "Phase 3  —  Strategic",
+     ["AWS Systems Manager automated remediation runbooks",
+      "Account tag-based team ownership routing",
+      "Historical trend analysis via Bedrock insights",
+      "USPTO ITSM / CMDB integration for asset correlation"]),
 ]
 
-col_x2 = [Inches(0.3), Inches(2.9), Inches(10.3)]
-col_w2 = [Inches(2.5), Inches(7.3), Inches(2.7)]
-hdrs   = ["Service", "Basis", "Monthly Cost"]
-
-y = Inches(1.45)
-for i, h in enumerate(hdrs):
-    add_rect(s, col_x2[i], y, col_w2[i], Inches(0.38), fill=NAVY)
-    add_textbox(s, col_x2[i]+Inches(0.06), y+Inches(0.05), col_w2[i]-Inches(0.1), Inches(0.3),
-                h, size=11, bold=True, color=WHITE)
-y += Inches(0.38)
-for ri, (svc, basis, cost) in enumerate(cost_rows):
-    bg = LGRAY if ri % 2 == 0 else WHITE
-    rh = Inches(0.44)
-    for ci, cell in enumerate([svc, basis, cost]):
-        add_rect(s, col_x2[ci], y, col_w2[ci], rh, fill=bg, line=RGBColor(0xDD,0xDD,0xDD))
-        clr = GREEN if "mo" in cell and cell.strip().startswith("~") or cell.startswith("<") else DGRAY
-        add_textbox(s, col_x2[ci]+Inches(0.06), y+Inches(0.07), col_w2[ci]-Inches(0.1), rh-Inches(0.1),
-                    cell, size=10, color=clr)
-    y += rh
-
-# total bar
-add_rect(s, Inches(0.3), y+Inches(0.08), Inches(12.7), Inches(0.5), fill=NAVY)
-add_textbox(s, Inches(0.4), y+Inches(0.12), Inches(9), Inches(0.36),
-            "Total Estimated Monthly Cost", size=13, bold=True, color=WHITE)
-add_textbox(s, Inches(10.0), y+Inches(0.12), Inches(3), Inches(0.36),
-            "~$10–15 / month", size=14, bold=True, color=ORANGE, align=PP_ALIGN.RIGHT)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# SLIDE 12 — Next Steps & Roadmap
-# ══════════════════════════════════════════════════════════════════════════════
-s = prs.slides.add_slide(BLANK)
-navy_header(s, "Roadmap & Next Steps", "Phase 2 enhancements to further reduce operational toil")
-footer(s)
-
-roadmap = [
-    ("Phase 1  ✅  Complete",
-     ["Automated health event collection across all 200 accounts",
-      "AI-generated summaries and action items via Amazon Bedrock",
-      "Centralized React dashboard with filtering, search, and CSV export",
-      "Follow-up ownership tracking and deadline reminders"]),
-    ("Phase 2  →  Near-term",
-     ["Slack / Microsoft Teams integration for real-time event notifications",
-      "ServiceNow ticketing — auto-create incident for Critical events",
-      "Cognito authentication when AWS SSO federation is available",
-      "Multi-region support (us-west-2 failover)"]),
-    ("Phase 3  →  Strategic",
-     ["AWS Systems Manager integration — automated remediation runbooks",
-      "Account tag-based routing (team ownership from AWS Organizations tags)",
-      "Historical trend analysis — Bedrock insights on recurring event patterns",
-      "API integration with USPTO ITSM / CMDB for asset correlation"]),
-]
-
-y = Inches(1.42)
-for col_idx, (phase, bullets) in enumerate(roadmap):
-    x = Inches(0.3) + col_idx * Inches(4.35)
-    bg = GREEN if "Complete" in phase else (NAVY if "Near" in phase else RGBColor(0x56,0x56,0x56))
-    add_rect(s, x, y, Inches(4.15), Inches(0.45), fill=bg)
-    add_textbox(s, x+Inches(0.1), y+Inches(0.06), Inches(3.95), Inches(0.35),
-                phase, size=12, bold=True, color=WHITE)
-    add_rect(s, x, y+Inches(0.45), Inches(4.15), Inches(5.35), fill=LGRAY, line=RGBColor(0xDD,0xDD,0xDD))
-    by = y + Inches(0.6)
+x = Inches(0.3)
+pw = Inches(4.2)
+for bg, phase_title, bullets in phases:
+    rect(s, x, Inches(1.38), pw, Inches(0.48), fill_rgb=bg)
+    txt(s, x+Inches(0.12), Inches(1.43), pw-Inches(0.2), Inches(0.38),
+        phase_title, size=13, bold=True, color=WHITE)
+    rect(s, x, Inches(1.86), pw, Inches(4.95),
+         fill_rgb=LGRAY, line_rgb=RGBColor(0xCC, 0xCC, 0xCC))
+    by = Inches(2.0)
     for b in bullets:
-        add_textbox(s, x+Inches(0.15), by, Inches(3.85), Inches(0.55),
-                    f"• {b}", size=11, color=DGRAY, wrap=True)
+        rect(s, x+Inches(0.15), by+Inches(0.12), Inches(0.12), Inches(0.12), fill_rgb=bg)
+        txt(s, x+Inches(0.38), by, pw-Inches(0.5), Inches(0.55),
+            b, size=11, color=DGRAY, wrap=True)
         by += Inches(1.15)
+    x += Inches(4.37)
 
-add_textbox(s, Inches(0.3), Inches(7.02), Inches(12.5), Inches(0.3),
-            "Questions?  |  Repository: github.com/saspto/aws-health-notifications-tracker  |  Live app: d2vuz8nfxuvkbe.cloudfront.net",
-            size=10, color=DGRAY, align=PP_ALIGN.CENTER)
+txt(s, Inches(0.3), Inches(7.03), Inches(12.5), Inches(0.26),
+    "Repository: github.com/saspto/aws-health-notifications-tracker   "
+    "  Live app: https://d2vuz8nfxuvkbe.cloudfront.net",
+    size=9, color=MGRAY, align=PP_ALIGN.CENTER)
 
 
-# ── save ────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# Save
+# ══════════════════════════════════════════════════════════════════════════════
 prs.save(OUT)
-print(f"Saved: {OUT}")
+print(f"Saved {prs.slides.__len__()} slides to: {OUT}")
