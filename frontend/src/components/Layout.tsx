@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Bell, LogOut } from 'lucide-react'
-import { useAuth } from '../hooks/useAuth'
+import { LayoutDashboard, Bell } from 'lucide-react'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -8,7 +7,6 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation()
-  const { user, logout } = useAuth()
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -45,18 +43,6 @@ export function Layout({ children }: LayoutProps) {
             </Link>
           ))}
         </nav>
-        {user && (
-          <div className="p-4 border-t border-gray-600">
-            <p className="text-gray-400 text-xs truncate mb-2">{user.email || user.username}</p>
-            <button
-              onClick={() => void logout()}
-              className="flex items-center gap-2 text-gray-300 hover:text-white text-sm"
-            >
-              <LogOut size={14} />
-              Sign out
-            </button>
-          </div>
-        )}
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>
     </div>

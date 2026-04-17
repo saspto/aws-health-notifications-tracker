@@ -1,0 +1,96 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6": {
+      "displayName": "HealthTrackerStack/Custom::S3AutoDeleteObjectsCustomResourceProvider Code",
+      "source": {
+        "path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-us-east-1-e650c2de": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1",
+          "objectKey": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-1"
+        }
+      }
+    },
+    "b0ca4a8b965cacb04f1cdfc7132dd6a9543df043970c8f58f03d6bbd03a0b47d": {
+      "displayName": "Lambdas/HealthCollector/Code",
+      "source": {
+        "path": "asset.b0ca4a8b965cacb04f1cdfc7132dd6a9543df043970c8f58f03d6bbd03a0b47d",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-us-east-1-f3e1fee9": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1",
+          "objectKey": "b0ca4a8b965cacb04f1cdfc7132dd6a9543df043970c8f58f03d6bbd03a0b47d.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-1"
+        }
+      }
+    },
+    "6e1c474ce43a5c0ce54d17b9ba3d2fdfdc9c284dda33f323a73d6199688204ce": {
+      "displayName": "Lambdas/LlmSummarizer/Code",
+      "source": {
+        "path": "asset.6e1c474ce43a5c0ce54d17b9ba3d2fdfdc9c284dda33f323a73d6199688204ce",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-us-east-1-78d0e0f5": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1",
+          "objectKey": "6e1c474ce43a5c0ce54d17b9ba3d2fdfdc9c284dda33f323a73d6199688204ce.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-1"
+        }
+      }
+    },
+    "ef2e80e07aa174409e65a5f2fd98b821406334df8f4ea214363c72710dc8788f": {
+      "displayName": "Lambdas/DeadlineReminder/Code",
+      "source": {
+        "path": "asset.ef2e80e07aa174409e65a5f2fd98b821406334df8f4ea214363c72710dc8788f",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-us-east-1-05c5bd4f": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1",
+          "objectKey": "ef2e80e07aa174409e65a5f2fd98b821406334df8f4ea214363c72710dc8788f.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-1"
+        }
+      }
+    },
+    "a556a36c7393c06cb07e5f431793f394775a8038b18558bf4639baad7422a077": {
+      "displayName": "Lambdas/ApiHandler/Code",
+      "source": {
+        "path": "asset.a556a36c7393c06cb07e5f431793f394775a8038b18558bf4639baad7422a077",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-us-east-1-d9e60cd2": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1",
+          "objectKey": "a556a36c7393c06cb07e5f431793f394775a8038b18558bf4639baad7422a077.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-1"
+        }
+      }
+    },
+    "09b6155281841406d6f00ca62f18256be94df999e91d924c1bba86e5e7674276": {
+      "displayName": "HealthTrackerStack Template",
+      "source": {
+        "path": "HealthTrackerStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-us-east-1-66ef4acb": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1",
+          "objectKey": "09b6155281841406d6f00ca62f18256be94df999e91d924c1bba86e5e7674276.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

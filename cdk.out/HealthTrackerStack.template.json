@@ -1,0 +1,1915 @@
+{
+ "Resources": {
+  "StorageHealthEventsTable6CB2CBDD": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "eventArn",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "accountId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "service",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "startTime",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "urgency",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "deadline",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "status",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "GSI1",
+      "KeySchema": [
+       {
+        "AttributeName": "service",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "startTime",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     },
+     {
+      "IndexName": "GSI2",
+      "KeySchema": [
+       {
+        "AttributeName": "urgency",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "deadline",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     },
+     {
+      "IndexName": "GSI3",
+      "KeySchema": [
+       {
+        "AttributeName": "status",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "startTime",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "KeySchema": [
+     {
+      "AttributeName": "eventArn",
+      "KeyType": "HASH"
+     },
+     {
+      "AttributeName": "accountId",
+      "KeyType": "RANGE"
+     }
+    ],
+    "PointInTimeRecoverySpecification": {
+     "PointInTimeRecoveryEnabled": true
+    },
+    "StreamSpecification": {
+     "StreamViewType": "NEW_AND_OLD_IMAGES"
+    },
+    "TableName": "HealthEvents",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Storage/HealthEventsTable/Resource"
+   }
+  },
+  "StorageArchiveBucketC50834F0": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "Status": "Enabled",
+       "Transitions": [
+        {
+         "StorageClass": "GLACIER",
+         "TransitionInDays": 90
+        }
+       ]
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "aws-cdk:auto-delete-objects",
+      "Value": "true"
+     }
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Storage/ArchiveBucket/Resource"
+   }
+  },
+  "StorageArchiveBucketPolicy32142AFF": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "StorageArchiveBucketC50834F0"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:PutBucketPolicy",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::GetAtt": [
+          "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+          "Arn"
+         ]
+        }
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageArchiveBucketC50834F0",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageArchiveBucketC50834F0",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Storage/ArchiveBucket/Policy/Resource"
+   }
+  },
+  "StorageArchiveBucketAutoDeleteObjectsCustomResourceCC5AE813": {
+   "Type": "Custom::S3AutoDeleteObjects",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+      "Arn"
+     ]
+    },
+    "BucketName": {
+     "Ref": "StorageArchiveBucketC50834F0"
+    }
+   },
+   "DependsOn": [
+    "StorageArchiveBucketPolicy32142AFF"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Storage/ArchiveBucket/AutoDeleteObjectsCustomResource/Default"
+   }
+  },
+  "StorageFrontendBucketC065FEEF": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "aws-cdk:auto-delete-objects",
+      "Value": "true"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Storage/FrontendBucket/Resource"
+   }
+  },
+  "StorageFrontendBucketPolicyDF4BBFFD": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "StorageFrontendBucketC065FEEF"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:PutBucketPolicy",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::GetAtt": [
+          "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+          "Arn"
+         ]
+        }
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageFrontendBucketC065FEEF",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageFrontendBucketC065FEEF",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "s3:GetObject",
+       "Condition": {
+        "StringEquals": {
+         "AWS:SourceArn": {
+          "Fn::Join": [
+           "",
+           [
+            "arn:",
+            {
+             "Ref": "AWS::Partition"
+            },
+            ":cloudfront::",
+            {
+             "Ref": "AWS::AccountId"
+            },
+            ":distribution/",
+            {
+             "Ref": "Distribution20DB6340"
+            }
+           ]
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "StorageFrontendBucketC065FEEF",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Storage/FrontendBucket/Policy/Resource"
+   }
+  },
+  "StorageFrontendBucketAutoDeleteObjectsCustomResourceE14612B9": {
+   "Type": "Custom::S3AutoDeleteObjects",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+      "Arn"
+     ]
+    },
+    "BucketName": {
+     "Ref": "StorageFrontendBucketC065FEEF"
+    }
+   },
+   "DependsOn": [
+    "StorageFrontendBucketPolicyDF4BBFFD"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Storage/FrontendBucket/AutoDeleteObjectsCustomResource/Default"
+   }
+  },
+  "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role"
+   }
+  },
+  "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1"
+     },
+     "S3Key": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip"
+    },
+    "Timeout": 900,
+    "MemorySize": 128,
+    "Handler": "index.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Description": {
+     "Fn::Join": [
+      "",
+      [
+       "Lambda function for auto-deleting objects in ",
+       {
+        "Ref": "StorageArchiveBucketC50834F0"
+       },
+       " S3 bucket."
+      ]
+     ]
+    }
+   },
+   "DependsOn": [
+    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler",
+    "aws:asset:path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+    "aws:asset:property": "Code"
+   }
+  },
+  "LambdasHealthCollectorServiceRoleEEC859E6": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/HealthCollector/ServiceRole/Resource"
+   }
+  },
+  "LambdasHealthCollectorServiceRoleDefaultPolicyF395D4FD": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageHealthEventsTable6CB2CBDD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageHealthEventsTable6CB2CBDD",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageHealthEventsTable6CB2CBDD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageHealthEventsTable6CB2CBDD",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:Abort*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageArchiveBucketC50834F0",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageArchiveBucketC50834F0",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "health:DescribeEventsForOrganization",
+        "health:DescribeEventDetailsForOrganization",
+        "health:DescribeAffectedAccountsForOrganizationEvent",
+        "health:DescribeAffectedEntitiesForOrganization",
+        "organizations:ListAccounts"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LambdasHealthCollectorServiceRoleDefaultPolicyF395D4FD",
+    "Roles": [
+     {
+      "Ref": "LambdasHealthCollectorServiceRoleEEC859E6"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/HealthCollector/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "LambdasHealthCollectorC324C71A": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1"
+     },
+     "S3Key": "b0ca4a8b965cacb04f1cdfc7132dd6a9543df043970c8f58f03d6bbd03a0b47d.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "TABLE_NAME": {
+       "Ref": "StorageHealthEventsTable6CB2CBDD"
+      },
+      "ARCHIVE_BUCKET": {
+       "Ref": "StorageArchiveBucketC50834F0"
+      },
+      "REGION": "us-east-1"
+     }
+    },
+    "FunctionName": "health-collector",
+    "Handler": "handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdasHealthCollectorServiceRoleEEC859E6",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "LambdasHealthCollectorServiceRoleDefaultPolicyF395D4FD",
+    "LambdasHealthCollectorServiceRoleEEC859E6"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/HealthCollector/Resource",
+    "aws:asset:path": "asset.b0ca4a8b965cacb04f1cdfc7132dd6a9543df043970c8f58f03d6bbd03a0b47d",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "LambdasLlmSummarizerServiceRoleF19DA7FB": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/LlmSummarizer/ServiceRole/Resource"
+   }
+  },
+  "LambdasLlmSummarizerServiceRoleDefaultPolicy27F456D2": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageHealthEventsTable6CB2CBDD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageHealthEventsTable6CB2CBDD",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "bedrock:InvokeModel",
+       "Effect": "Allow",
+       "Resource": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001"
+      },
+      {
+       "Action": "dynamodb:ListStreams",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "dynamodb:DescribeStream",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "StorageHealthEventsTable6CB2CBDD",
+         "StreamArn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LambdasLlmSummarizerServiceRoleDefaultPolicy27F456D2",
+    "Roles": [
+     {
+      "Ref": "LambdasLlmSummarizerServiceRoleF19DA7FB"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/LlmSummarizer/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "LambdasLlmSummarizer3AB63E4E": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1"
+     },
+     "S3Key": "6e1c474ce43a5c0ce54d17b9ba3d2fdfdc9c284dda33f323a73d6199688204ce.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "TABLE_NAME": {
+       "Ref": "StorageHealthEventsTable6CB2CBDD"
+      },
+      "ARCHIVE_BUCKET": {
+       "Ref": "StorageArchiveBucketC50834F0"
+      },
+      "REGION": "us-east-1"
+     }
+    },
+    "FunctionName": "llm-summarizer",
+    "Handler": "handler.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdasLlmSummarizerServiceRoleF19DA7FB",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 120
+   },
+   "DependsOn": [
+    "LambdasLlmSummarizerServiceRoleDefaultPolicy27F456D2",
+    "LambdasLlmSummarizerServiceRoleF19DA7FB"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/LlmSummarizer/Resource",
+    "aws:asset:path": "asset.6e1c474ce43a5c0ce54d17b9ba3d2fdfdc9c284dda33f323a73d6199688204ce",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "LambdasLlmSummarizerDynamoDBEventSourceHealthTrackerStackStorageHealthEventsTable07512C89E1A235E6": {
+   "Type": "AWS::Lambda::EventSourceMapping",
+   "Properties": {
+    "BatchSize": 10,
+    "EventSourceArn": {
+     "Fn::GetAtt": [
+      "StorageHealthEventsTable6CB2CBDD",
+      "StreamArn"
+     ]
+    },
+    "FilterCriteria": {
+     "Filters": [
+      {
+       "Pattern": "{\"eventName\":[\"INSERT\",\"MODIFY\"]}"
+      }
+     ]
+    },
+    "FunctionName": {
+     "Ref": "LambdasLlmSummarizer3AB63E4E"
+    },
+    "StartingPosition": "TRIM_HORIZON"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/LlmSummarizer/DynamoDBEventSource:HealthTrackerStackStorageHealthEventsTable07512C89/Resource"
+   }
+  },
+  "LambdasHealthDeadlineAlertsFDAAB02A": {
+   "Type": "AWS::SNS::Topic",
+   "Properties": {
+    "DisplayName": "AWS Health Deadline Alerts",
+    "TopicName": "HealthDeadlineAlerts"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/HealthDeadlineAlerts/Resource"
+   }
+  },
+  "LambdasHealthDeadlineAlertsopsteamexamplecomB17EFB5C": {
+   "Type": "AWS::SNS::Subscription",
+   "Properties": {
+    "Endpoint": "ops-team@example.com",
+    "Protocol": "email",
+    "TopicArn": {
+     "Ref": "LambdasHealthDeadlineAlertsFDAAB02A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/HealthDeadlineAlerts/ops-team@example.com/Resource"
+   }
+  },
+  "LambdasDeadlineReminderServiceRole122BCC37": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/DeadlineReminder/ServiceRole/Resource"
+   }
+  },
+  "LambdasDeadlineReminderServiceRoleDefaultPolicyE0F9EDFB": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageHealthEventsTable6CB2CBDD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageHealthEventsTable6CB2CBDD",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageHealthEventsTable6CB2CBDD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageHealthEventsTable6CB2CBDD",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "sns:Publish",
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "LambdasHealthDeadlineAlertsFDAAB02A"
+       }
+      },
+      {
+       "Action": "cloudwatch:PutMetricData",
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LambdasDeadlineReminderServiceRoleDefaultPolicyE0F9EDFB",
+    "Roles": [
+     {
+      "Ref": "LambdasDeadlineReminderServiceRole122BCC37"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/DeadlineReminder/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "LambdasDeadlineReminder866B931F": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1"
+     },
+     "S3Key": "ef2e80e07aa174409e65a5f2fd98b821406334df8f4ea214363c72710dc8788f.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "TABLE_NAME": {
+       "Ref": "StorageHealthEventsTable6CB2CBDD"
+      },
+      "ARCHIVE_BUCKET": {
+       "Ref": "StorageArchiveBucketC50834F0"
+      },
+      "REGION": "us-east-1",
+      "SNS_TOPIC_ARN": {
+       "Ref": "LambdasHealthDeadlineAlertsFDAAB02A"
+      }
+     }
+    },
+    "FunctionName": "deadline-reminder",
+    "Handler": "handler.handler",
+    "MemorySize": 128,
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdasDeadlineReminderServiceRole122BCC37",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "LambdasDeadlineReminderServiceRoleDefaultPolicyE0F9EDFB",
+    "LambdasDeadlineReminderServiceRole122BCC37"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/DeadlineReminder/Resource",
+    "aws:asset:path": "asset.ef2e80e07aa174409e65a5f2fd98b821406334df8f4ea214363c72710dc8788f",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "LambdasApiHandlerServiceRoleC56AF3D4": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/ApiHandler/ServiceRole/Resource"
+   }
+  },
+  "LambdasApiHandlerServiceRoleDefaultPolicy234484F3": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageHealthEventsTable6CB2CBDD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageHealthEventsTable6CB2CBDD",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StorageHealthEventsTable6CB2CBDD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StorageHealthEventsTable6CB2CBDD",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LambdasApiHandlerServiceRoleDefaultPolicy234484F3",
+    "Roles": [
+     {
+      "Ref": "LambdasApiHandlerServiceRoleC56AF3D4"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/ApiHandler/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "LambdasApiHandlerC610E407": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1"
+     },
+     "S3Key": "a556a36c7393c06cb07e5f431793f394775a8038b18558bf4639baad7422a077.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "TABLE_NAME": {
+       "Ref": "StorageHealthEventsTable6CB2CBDD"
+      },
+      "ARCHIVE_BUCKET": {
+       "Ref": "StorageArchiveBucketC50834F0"
+      },
+      "REGION": "us-east-1"
+     }
+    },
+    "FunctionName": "api-handler",
+    "Handler": "handler.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdasApiHandlerServiceRoleC56AF3D4",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "LambdasApiHandlerServiceRoleDefaultPolicy234484F3",
+    "LambdasApiHandlerServiceRoleC56AF3D4"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/ApiHandler/Resource",
+    "aws:asset:path": "asset.a556a36c7393c06cb07e5f431793f394775a8038b18558bf4639baad7422a077",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "LambdasSchedulerRoleCD0EC7A7": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "scheduler.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/SchedulerRole/Resource"
+   }
+  },
+  "LambdasSchedulerRoleDefaultPolicyF719F3ED": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "LambdasHealthCollectorC324C71A",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "LambdasHealthCollectorC324C71A",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "LambdasDeadlineReminder866B931F",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "LambdasDeadlineReminder866B931F",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LambdasSchedulerRoleDefaultPolicyF719F3ED",
+    "Roles": [
+     {
+      "Ref": "LambdasSchedulerRoleCD0EC7A7"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/SchedulerRole/DefaultPolicy/Resource"
+   }
+  },
+  "LambdasHealthCollectorScheduleB3701E48": {
+   "Type": "AWS::Scheduler::Schedule",
+   "Properties": {
+    "FlexibleTimeWindow": {
+     "Mode": "OFF"
+    },
+    "Name": "health-collector-schedule",
+    "ScheduleExpression": "rate(15 minutes)",
+    "Target": {
+     "Arn": {
+      "Fn::GetAtt": [
+       "LambdasHealthCollectorC324C71A",
+       "Arn"
+      ]
+     },
+     "RoleArn": {
+      "Fn::GetAtt": [
+       "LambdasSchedulerRoleCD0EC7A7",
+       "Arn"
+      ]
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/HealthCollectorSchedule"
+   }
+  },
+  "LambdasDeadlineReminderSchedule5658F8C3": {
+   "Type": "AWS::Scheduler::Schedule",
+   "Properties": {
+    "FlexibleTimeWindow": {
+     "Mode": "OFF"
+    },
+    "Name": "deadline-reminder-schedule",
+    "ScheduleExpression": "cron(0 9 * * ? *)",
+    "Target": {
+     "Arn": {
+      "Fn::GetAtt": [
+       "LambdasDeadlineReminder866B931F",
+       "Arn"
+      ]
+     },
+     "RoleArn": {
+      "Fn::GetAtt": [
+       "LambdasSchedulerRoleCD0EC7A7",
+       "Arn"
+      ]
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Lambdas/DeadlineReminderSchedule"
+   }
+  },
+  "ApiHealthTrackerApiDE08EC56": {
+   "Type": "AWS::ApiGatewayV2::Api",
+   "Properties": {
+    "CorsConfiguration": {
+     "AllowHeaders": [
+      "Content-Type",
+      "Authorization"
+     ],
+     "AllowMethods": [
+      "GET",
+      "PATCH",
+      "OPTIONS"
+     ],
+     "AllowOrigins": [
+      "*"
+     ],
+     "MaxAge": 86400
+    },
+    "Name": "health-tracker-api",
+    "ProtocolType": "HTTP"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/Resource"
+   }
+  },
+  "ApiHealthTrackerApiDefaultStageBB7A8CAA": {
+   "Type": "AWS::ApiGatewayV2::Stage",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ApiHealthTrackerApiDE08EC56"
+    },
+    "AutoDeploy": true,
+    "StageName": "$default"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/DefaultStage/Resource"
+   }
+  },
+  "ApiHealthTrackerApiGETeventsApiHandlerIntegration5BF3555E": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ApiHealthTrackerApiDE08EC56"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::GetAtt": [
+      "LambdasApiHandlerC610E407",
+      "Arn"
+     ]
+    },
+    "PayloadFormatVersion": "2.0"
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--events/ApiHandlerIntegration/Resource"
+   }
+  },
+  "ApiHealthTrackerApiGETeventsApiHandlerIntegrationPermission9474999B": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LambdasApiHandlerC610E407",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":",
+       {
+        "Ref": "ApiHealthTrackerApiDE08EC56"
+       },
+       "/*/*/events"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--events/ApiHandlerIntegration-Permission"
+   }
+  },
+  "ApiHealthTrackerApiGETevents3C0822A1": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ApiHealthTrackerApiDE08EC56"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "GET /events",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ApiHealthTrackerApiGETeventsApiHandlerIntegration5BF3555E"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--events/Resource"
+   }
+  },
+  "ApiHealthTrackerApiGETeventseventArnaccountIdApiHandlerIntegrationPermission05D2EEFB": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LambdasApiHandlerC610E407",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":",
+       {
+        "Ref": "ApiHealthTrackerApiDE08EC56"
+       },
+       "/*/*/events/{eventArn}/{accountId}"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--events--{eventArn}--{accountId}/ApiHandlerIntegration-Permission"
+   }
+  },
+  "ApiHealthTrackerApiGETeventseventArnaccountIdDC3BA847": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ApiHealthTrackerApiDE08EC56"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "GET /events/{eventArn}/{accountId}",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ApiHealthTrackerApiGETeventsApiHandlerIntegration5BF3555E"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--events--{eventArn}--{accountId}/Resource"
+   }
+  },
+  "ApiHealthTrackerApiPATCHeventseventArnaccountIdApiHandlerIntegrationPermission1D21BE6E": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LambdasApiHandlerC610E407",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":",
+       {
+        "Ref": "ApiHealthTrackerApiDE08EC56"
+       },
+       "/*/*/events/{eventArn}/{accountId}"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/PATCH--events--{eventArn}--{accountId}/ApiHandlerIntegration-Permission"
+   }
+  },
+  "ApiHealthTrackerApiPATCHeventseventArnaccountId3709A95E": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ApiHealthTrackerApiDE08EC56"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "PATCH /events/{eventArn}/{accountId}",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ApiHealthTrackerApiGETeventsApiHandlerIntegration5BF3555E"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/PATCH--events--{eventArn}--{accountId}/Resource"
+   }
+  },
+  "ApiHealthTrackerApiGETstatsApiHandlerIntegrationPermissionF824F3CE": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LambdasApiHandlerC610E407",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":",
+       {
+        "Ref": "ApiHealthTrackerApiDE08EC56"
+       },
+       "/*/*/stats"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--stats/ApiHandlerIntegration-Permission"
+   }
+  },
+  "ApiHealthTrackerApiGETstats1B7C7FCB": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ApiHealthTrackerApiDE08EC56"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "GET /stats",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ApiHealthTrackerApiGETeventsApiHandlerIntegration5BF3555E"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--stats/Resource"
+   }
+  },
+  "ApiHealthTrackerApiGETaccountsApiHandlerIntegrationPermission159379CA": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "LambdasApiHandlerC610E407",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":",
+       {
+        "Ref": "ApiHealthTrackerApiDE08EC56"
+       },
+       "/*/*/accounts"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--accounts/ApiHandlerIntegration-Permission"
+   }
+  },
+  "ApiHealthTrackerApiGETaccounts89293C3B": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ApiHealthTrackerApiDE08EC56"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "GET /accounts",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ApiHealthTrackerApiGETeventsApiHandlerIntegration5BF3555E"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Api/HealthTrackerApi/GET--accounts/Resource"
+   }
+  },
+  "DistributionOAC2915F0CA": {
+   "Type": "AWS::CloudFront::OriginAccessControl",
+   "Properties": {
+    "OriginAccessControlConfig": {
+     "Description": "OAC for Health Tracker frontend",
+     "Name": "HealthTrackerStackDistributionOAC7E9C10D1",
+     "OriginAccessControlOriginType": "s3",
+     "SigningBehavior": "always",
+     "SigningProtocol": "sigv4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Distribution/OAC/Resource"
+   }
+  },
+  "DistributionStaticCachePolicy9DB25ED3": {
+   "Type": "AWS::CloudFront::CachePolicy",
+   "Properties": {
+    "CachePolicyConfig": {
+     "DefaultTTL": 3600,
+     "MaxTTL": 86400,
+     "MinTTL": 0,
+     "Name": "HealthTrackerStackDistributionStaticCachePolicy927EA44E-us-east-1",
+     "ParametersInCacheKeyAndForwardedToOrigin": {
+      "CookiesConfig": {
+       "CookieBehavior": "none"
+      },
+      "EnableAcceptEncodingBrotli": true,
+      "EnableAcceptEncodingGzip": true,
+      "HeadersConfig": {
+       "HeaderBehavior": "none"
+      },
+      "QueryStringsConfig": {
+       "QueryStringBehavior": "none"
+      }
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Distribution/StaticCachePolicy/Resource"
+   }
+  },
+  "Distribution20DB6340": {
+   "Type": "AWS::CloudFront::Distribution",
+   "Properties": {
+    "DistributionConfig": {
+     "CacheBehaviors": [
+      {
+       "AllowedMethods": [
+        "GET",
+        "HEAD",
+        "OPTIONS",
+        "PUT",
+        "PATCH",
+        "POST",
+        "DELETE"
+       ],
+       "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+       "Compress": true,
+       "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+       "PathPattern": "/api/*",
+       "TargetOriginId": "HealthTrackerStackDistributionOrigin28C3F3F01",
+       "ViewerProtocolPolicy": "https-only"
+      }
+     ],
+     "CustomErrorResponses": [
+      {
+       "ErrorCode": 404,
+       "ResponseCode": 200,
+       "ResponsePagePath": "/index.html"
+      },
+      {
+       "ErrorCode": 403,
+       "ResponseCode": 200,
+       "ResponsePagePath": "/index.html"
+      }
+     ],
+     "DefaultCacheBehavior": {
+      "CachePolicyId": {
+       "Ref": "DistributionStaticCachePolicy9DB25ED3"
+      },
+      "Compress": true,
+      "TargetOriginId": "HealthTrackerStackDistributionOrigin1EE5F95CA",
+      "ViewerProtocolPolicy": "redirect-to-https"
+     },
+     "DefaultRootObject": "index.html",
+     "Enabled": true,
+     "HttpVersion": "http2",
+     "IPV6Enabled": true,
+     "Origins": [
+      {
+       "DomainName": {
+        "Fn::GetAtt": [
+         "StorageFrontendBucketC065FEEF",
+         "RegionalDomainName"
+        ]
+       },
+       "Id": "HealthTrackerStackDistributionOrigin1EE5F95CA",
+       "OriginAccessControlId": {
+        "Fn::GetAtt": [
+         "DistributionOAC2915F0CA",
+         "Id"
+        ]
+       },
+       "S3OriginConfig": {
+        "OriginAccessIdentity": ""
+       }
+      },
+      {
+       "CustomOriginConfig": {
+        "OriginProtocolPolicy": "https-only",
+        "OriginSSLProtocols": [
+         "TLSv1.2"
+        ]
+       },
+       "DomainName": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Ref": "ApiHealthTrackerApiDE08EC56"
+          },
+          ".execute-api.us-east-1.",
+          {
+           "Ref": "AWS::URLSuffix"
+          }
+         ]
+        ]
+       },
+       "Id": "HealthTrackerStackDistributionOrigin28C3F3F01"
+      }
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/Distribution/Distribution/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/6VRTW8aMRD9LeFs3IRVLrkRkqo9VCA2t6qKvN5hmbBrrzxjKLL83yvboaA2OUQ5zXvz5ed5Mzm7vZbXV+pAU93upj02MtSs9E6oAz2H9mjUYNtGhifV9CAWG5NBFFTJcO/1DjglC/oZJgP+RjO5m1wuTJuokrlEsrTOPdsH6IFh2byAZppE8anpX6KUVrZHfTxrKvwDyspAzYphAPNBYf8Pn3TdK4IoejU0rZLhqzea0Zqk8y9+3IPh2nqn4YcaRzRdKr+dXYEbkAitiQLVIMPaFntyPB+hoGTXsyICJjlPQZAhGZ7siDp7mkHtG9IOx5OwSx4F6S20vgcnU+mVCDVipxgO6rifyfCNeZyPmIZTSLRm1WVhBaTU2nou6Lth6Jw6PfgPzX1R6N76duOsYRnqaumwQzPXGogW1rCzfep9M630Fs6nuKQPSOyw8aenLnmMYg2UDy4WntgOZ7ox75RWzu6xBZdsFvnE6b+vZi09j56jWB15a82XSt7MZHX1QohT5w3jAHJd4h+roR4WkAMAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "HealthTrackerStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "CloudFrontURL": {
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Fn::GetAtt": [
+        "Distribution20DB6340",
+        "DomainName"
+       ]
+      }
+     ]
+    ]
+   }
+  },
+  "ApiEndpoint": {
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Ref": "ApiHealthTrackerApiDE08EC56"
+      },
+      ".execute-api.us-east-1.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/"
+     ]
+    ]
+   }
+  },
+  "TableName": {
+   "Value": {
+    "Ref": "StorageHealthEventsTable6CB2CBDD"
+   }
+  },
+  "FrontendBucketName": {
+   "Value": {
+    "Ref": "StorageFrontendBucketC065FEEF"
+   }
+  },
+  "DistributionId": {
+   "Value": {
+    "Ref": "Distribution20DB6340"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

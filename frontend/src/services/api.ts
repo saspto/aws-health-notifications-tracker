@@ -1,25 +1,13 @@
-import { fetchAuthSession } from 'aws-amplify/auth'
 import type { HealthEvent, EventsResponse, StatsResponse, AccountItem, EventFilters } from '../types'
 import awsConfig from '../aws-exports'
 
 const API_BASE = awsConfig.apiEndpoint?.replace(/\/$/, '') || ''
 
-async function getAuthToken(): Promise<string> {
-  try {
-    const session = await fetchAuthSession()
-    return session.tokens?.idToken?.toString() || ''
-  } catch {
-    return ''
-  }
-}
-
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = await getAuthToken()
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: token } : {}),
       ...options.headers,
     },
   })

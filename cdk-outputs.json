@@ -1,9 +1,7 @@
 {
   "HealthTrackerStack": {
-    "UserPoolClientId": "2qiacpso45vgqg6u4f4qidbk76",
     "TableName": "HealthEvents",
     "CloudFrontURL": "https://d2vuz8nfxuvkbe.cloudfront.net",
-    "UserPoolId": "us-east-1_1qRRFJgsD",
     "FrontendBucketName": "healthtrackerstack-storagefrontendbucketc065feef-eavtnttgfvib",
     "ApiEndpoint": "https://1bi9po5fr1.execute-api.us-east-1.amazonaws.com/",
     "DistributionId": "E257QI4HTB735S"

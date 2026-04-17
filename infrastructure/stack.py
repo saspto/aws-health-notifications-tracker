@@ -20,8 +20,6 @@ class HealthTrackerStack(Stack):
         )
 
         CfnOutput(self, "CloudFrontURL", value=f"https://{distribution.distribution.distribution_domain_name}")
-        CfnOutput(self, "UserPoolId", value=api.user_pool.user_pool_id)
-        CfnOutput(self, "UserPoolClientId", value=api.user_pool_client.user_pool_client_id)
         CfnOutput(self, "ApiEndpoint", value=api.http_api.url or "")
         CfnOutput(self, "TableName", value=storage.table.table_name)
         CfnOutput(self, "FrontendBucketName", value=storage.frontend_bucket.bucket_name)
