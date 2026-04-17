@@ -192,16 +192,19 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             return resp(200, list_events(table, qp))
 
         elif method == "GET" and "/events/" in raw_path:
-            event_arn = path_params.get("eventArn", "")
-            account_id = path_params.get("accountId", "")
+            # rawPath: /events/<eventArn>/<accountId> — accountId is last segment
+            after_prefix = raw_path[len("/events/"):]
+            account_id = after_prefix.rsplit("/", 1)[-1]
+            event_arn = after_prefix.rsplit("/", 1)[0]
             item = get_event(table, event_arn, account_id)
             if item is None:
                 return resp(404, {"error": "Event not found"})
             return resp(200, item)
 
         elif method == "PATCH" and "/events/" in raw_path:
-            event_arn = path_params.get("eventArn", "")
-            account_id = path_params.get("accountId", "")
+            after_prefix = raw_path[len("/events/"):]
+            account_id = after_prefix.rsplit("/", 1)[-1]
+            event_arn = after_prefix.rsplit("/", 1)[0]
             body_str = event.get("body", "{}")
             body = json.loads(body_str) if body_str else {}
             try:

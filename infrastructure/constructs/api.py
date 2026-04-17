@@ -35,8 +35,8 @@ class ApiConstruct(Construct):
 
         routes = [
             ("GET", "/events"),
-            ("GET", "/events/{eventArn}/{accountId}"),
-            ("PATCH", "/events/{eventArn}/{accountId}"),
+            ("GET", "/events/{eventArn+}"),
+            ("PATCH", "/events/{eventArn+}"),
             ("GET", "/stats"),
             ("GET", "/accounts"),
         ]
