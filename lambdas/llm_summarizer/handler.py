@@ -13,7 +13,7 @@ logger.setLevel(logging.INFO)
 
 TABLE_NAME = os.environ.get("TABLE_NAME", "HealthEvents")
 REGION = os.environ.get("REGION", "us-east-1")
-BEDROCK_MODEL_ID = "anthropic.claude-haiku-4-5-20251001"
+BEDROCK_MODEL_ID = "anthropic.claude-haiku-4-5-20251001-v1:0"
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 bedrock_client = boto3.client("bedrock-runtime", region_name=REGION)

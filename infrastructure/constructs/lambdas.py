@@ -77,7 +77,7 @@ class LambdasConstruct(Construct):
             iam.PolicyStatement(
                 actions=["bedrock:InvokeModel"],
                 resources=[
-                    f"arn:aws:bedrock:{region}::foundation-model/anthropic.claude-haiku-4-5-20251001"
+                    f"arn:aws:bedrock:{region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0"
                 ],
             )
         )
